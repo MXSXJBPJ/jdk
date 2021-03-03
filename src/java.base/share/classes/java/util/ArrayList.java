@@ -106,9 +106,25 @@ import jdk.internal.util.ArraysSupport;
  * @see     Vector
  * @since   1.2
  */
+/*
+* List：提供数组的增删改查（迭代）等操作
+*
+* RandomAccess：标记接口(内容为空的)，表示ArrayList支持快速随机查询，
+* 而ArrayList底层是array，天然支持快速随机查询的，所以不用实现RandomAccess这个接口也支持快速随机查询
+* RandomAccess标记的作用：可以通过 instanceof 做判断， 选择合适的集合遍历方式，当数据量很大时， 就能大大提升性能。
+*（随机访问列表使用循环遍历，顺序访问列表使用迭代器遍历。）
+* 例子：
+* if (list instanceof RandomAccess){使用循环遍历}else{使用迭代器}
+*
+* Serializable：表示支持序列化
+*
+* Cloneable：表示支持克隆
+ * */
 public class ArrayList<E> extends AbstractList<E>
         implements List<E>, RandomAccess, Cloneable, java.io.Serializable
 {
+    //Java的序列化机制是通过在运行时判断类的serialVersionUID来验证版本一致性的。在进行反序列化时，JVM会把传来的字节流中的serialVersionUID与本地相应实体类的serialVersionUID进行比较，
+    //如果相同就认为是一致的，可以进行反序列化，否则就会出现序列化版本不一致的异常(InvalidCastException)。
     @java.io.Serial
     private static final long serialVersionUID = 8683452581122892189L;
 

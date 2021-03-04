@@ -119,6 +119,10 @@ import jdk.internal.util.ArraysSupport;
 * Serializable：表示支持序列化
 *
 * Cloneable：表示支持克隆
+*
+*
+* 继承了AbstractList<E> 抽象类：ArrayList 大量重写了 AbstractList 提供的方法实现。
+* 所以，AbstractList 对于 ArrayList 意义不大，更多的是 AbstractList 其它子类享受了这个福利。
  * */
 public class ArrayList<E> extends AbstractList<E>
         implements List<E>, RandomAccess, Cloneable, java.io.Serializable
@@ -130,12 +134,17 @@ public class ArrayList<E> extends AbstractList<E>
 
     /**
      * Default initial capacity.
+     * 默认初始容量。
      */
     private static final int DEFAULT_CAPACITY = 10;
 
     /**
      * Shared empty array instance used for empty instances.
      */
+    /*共享的空数组对象
+    * 在ArrayList(int) 或者 ArrayList(Collection)构造方法中，
+    * 如果传入的初始化大小或集合大小为0时，elementData指向它。数组大小为传入的参数
+    */
     private static final Object[] EMPTY_ELEMENTDATA = {};
 
     /**
@@ -143,6 +152,7 @@ public class ArrayList<E> extends AbstractList<E>
      * distinguish this from EMPTY_ELEMENTDATA to know how much to inflate when
      * first element is added.
      */
+    /* 通过使用该静态变量，和 {@link #EMPTY_ELEMENTDATA} 区分开来，在第一次添加元素时。*/
     private static final Object[] DEFAULTCAPACITY_EMPTY_ELEMENTDATA = {};
 
     /**
@@ -151,6 +161,8 @@ public class ArrayList<E> extends AbstractList<E>
      * empty ArrayList with elementData == DEFAULTCAPACITY_EMPTY_ELEMENTDATA
      * will be expanded to DEFAULT_CAPACITY when the first element is added.
      */
+    /*elementData：元素数组,当添加新的元素时，如果该数组不够，会创建新数组，并将原数组的元素拷贝到新数组。之后，将该变量指向新数组。*/
+    /*transient避免这个属性被实例化*/
     transient Object[] elementData; // non-private to simplify nested class access
 
     /**
@@ -158,6 +170,8 @@ public class ArrayList<E> extends AbstractList<E>
      *
      * @serial
      */
+    /*size: 数组大小,代表 ArrayList 已使用elementData的元素数量,
+    其实也是该列表的大小。也是要添加下一个元素的坐标*/
     private int size;
 
     /**
@@ -167,12 +181,18 @@ public class ArrayList<E> extends AbstractList<E>
      * @throws IllegalArgumentException if the specified initial capacity
      *         is negative
      */
+    /*根据传入的初始化容量，创建ArrayList数组，如果我们在使用时，
+    如果预先指定数组大小一定要用改构造方法，可以避免数组扩容提升性能。*/
     public ArrayList(int initialCapacity) {
+        //初始化容量大于0时
         if (initialCapacity > 0) {
+            //初始化容量大于0时，创建指定大小的数组。
             this.elementData = new Object[initialCapacity];
         } else if (initialCapacity == 0) {
+            //创建空数组,在添加元素的时候，会进行扩容创建需要的数组。
             this.elementData = EMPTY_ELEMENTDATA;
         } else {
+            //负数抛出异常
             throw new IllegalArgumentException("Illegal Capacity: "+
                                                initialCapacity);
         }
@@ -182,6 +202,9 @@ public class ArrayList<E> extends AbstractList<E>
      * Constructs an empty list with an initial capacity of ten.
      */
     public ArrayList() {
+        /*在未设置初始化容量时，ArrayList 默认大小为0,在首次添加元素时，才真正初始化为容量为 10 的数组。*/
+       /*那么为什么单独声明了 DEFAULTCAPACITY_EMPTY_ELEMENTDATA 空数组，而不直接使用 EMPTY_ELEMENTDATA 呢？
+       在下文中，我们会看到 DEFAULTCAPACITY_EMPTY_ELEMENTDATA 首次扩容为 10 ，而 EMPTY_ELEMENTDATA 按照 1.5 倍扩容从 0 开始而不是 10 。😈两者的起点不同，*/
         this.elementData = DEFAULTCAPACITY_EMPTY_ELEMENTDATA;
     }
 
@@ -193,12 +216,21 @@ public class ArrayList<E> extends AbstractList<E>
      * @param c the collection whose elements are to be placed into this list
      * @throws NullPointerException if the specified collection is null
      */
+    /*使用传入的 c 集合，作为 ArrayList 的 elementData*/
     public ArrayList(Collection<? extends E> c) {
+        //将c转换成Object数组
         Object[] a = c.toArray();
+        //如果数组大小大于0
         if ((size = a.length) != 0) {
+            //如果c是ArrayList就直接赋值,
+            // 以前的jdk是if (elementData.getClass() != Object[].class){}为什么要改成这样呢?????
+            //if (elementData.getClass() != Object[].class){}是怕重写toArray();方法，返回的不是Object[]。
+            //而且这个解决JDK-6260652 : (coll) Arrays.asList(x).toArray().getClass() should be Object[].class这个bug
             if (c.getClass() == ArrayList.class) {
                 elementData = a;
             } else {
+                //如果c不是ArrayList就重新创建一个arrays
+                //size是全局变量，在if那已经赋值，是c列表的长度
                 elementData = Arrays.copyOf(a, size, Object[].class);
             }
         } else {
@@ -212,12 +244,16 @@ public class ArrayList<E> extends AbstractList<E>
      * list's current size.  An application can use this operation to minimize
      * the storage of an {@code ArrayList} instance.
      */
+    //数组缩容
     public void trimToSize() {
+        // 增加修改次数
         modCount++;
+        //size是对列表数据大小的记录
+        //如果数据大小比列表的容量小就进行缩容
         if (size < elementData.length) {
             elementData = (size == 0)
-              ? EMPTY_ELEMENTDATA
-              : Arrays.copyOf(elementData, size);
+              ? EMPTY_ELEMENTDATA// 大小为 0 时，直接使用 EMPTY_ELEMENTDATA
+              : Arrays.copyOf(elementData, size);// 大小大于 0 ，则创建大小为 size 的新数组，将原数组复制到其中。
         }
     }
 
@@ -244,19 +280,30 @@ public class ArrayList<E> extends AbstractList<E>
      * @param minCapacity the desired minimum capacity
      * @throws OutOfMemoryError if minCapacity is less than zero
      */
+    //数组扩容，并并返回被扩容的数组
+    //大概的过程：先创建一个更大的数组，一般是1.5倍,然后将原数组复制到新数组中，最后返回新数组
     private Object[] grow(int minCapacity) {
         int oldCapacity = elementData.length;
+        //如果原容量大于0,或者数组不是DEFAULTCAPACITY_EMPTY_ELEMENTDATA时，计算新的数组大小，并创建扩容数组
         if (oldCapacity > 0 || elementData != DEFAULTCAPACITY_EMPTY_ELEMENTDATA) {
+            //计算新的数组大小。简单来说，结果就是按照 minGrowth 和 prefGrowth 取大的。
+            //从 oldCapacity >> 1 可以看处，是 1.5 倍扩容(1*1.5->翻0.5倍)
+            //但是会有两个特殊情况：
+            //1.初始化数组要求大小为 0 的时候，0 >> 1 时（>> 1 为右移操作，相当于除以 2）还是 0 ，此时使用 minCapacity 传入的 1 。
+            //2.数组大小不为0的时候按1.5倍扩充
             int newCapacity = ArraysSupport.newLength(oldCapacity,
                     minCapacity - oldCapacity, /* minimum growth */
                     oldCapacity >> 1           /* preferred growth */);
             return elementData = Arrays.copyOf(elementData, newCapacity);
+            //如果是DEFAULTCAPACITY_EMPTY_ELEMENTDATA的话（因为只有这个 elementData.length;才会等于0）就直接创建新数组
         } else {
+            //创建个大小为minCapacity（10）的数组(DEFAULT_CAPACITY肯定为0，小于minCapacity)
             return elementData = new Object[Math.max(DEFAULT_CAPACITY, minCapacity)];
         }
     }
 
     private Object[] grow() {
+        //调用 #grow(int minCapacity) 方法，要求扩容后至少比原有大1。
         return grow(size + 1);
     }
 
@@ -466,9 +513,13 @@ public class ArrayList<E> extends AbstractList<E>
      * which helps when add(E) is called in a C1-compiled loop.
      */
     private void add(E e, Object[] elementData, int s) {
+        //如果容量不够，进行扩容
+        //如果list记录的大小等于数据的大小，就进行扩容
         if (s == elementData.length)
             elementData = grow();
+        //设置到末尾
         elementData[s] = e;
+        //数量大小加一
         size = s + 1;
     }
 
@@ -479,8 +530,11 @@ public class ArrayList<E> extends AbstractList<E>
      * @return {@code true} (as specified by {@link Collection#add})
      */
     public boolean add(E e) {
+        //增加数组修改次数,在父类 AbstractList 上，定义了 modCount 属性，用于记录数组修改次数
         modCount++;
+        //添加元素
         add(e, elementData, size);
+        //返回添加成功
         return true;
     }
 
@@ -493,8 +547,11 @@ public class ArrayList<E> extends AbstractList<E>
      * @param element element to be inserted
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
+    //插入单个元素到指定位置
     public void add(int index, E element) {
+        // 校验位置是否在数组范围内
         rangeCheckForAdd(index);
+        //增加数组修改次数
         modCount++;
         final int s;
         Object[] elementData;
